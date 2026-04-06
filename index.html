@@ -703,7 +703,7 @@
       </div>
     </div>
 
-    <!-- SUPPORT SECTION - EMAIL UPDATED -->
+    <!-- SUPPORT SECTION -->
     <div id="support" class="section">
       <div class="dashboard">
         <h2><i class="fas fa-headset"></i> Support Center</h2>
@@ -763,7 +763,7 @@
 
 <script>
 // ============ IMGBB API KEY (Yahan Apni API Key Daalo) ============
-const IMGBB_API_KEY = "000d3f5548625d589cb076853cc47236";
+const IMGBB_API_KEY = "YOUR_IMGBB_API_KEY_HERE";
 
 // ============ PLANS DATA ============
 const plansData = [
@@ -1309,10 +1309,16 @@ function selectInvestmentPaymentMethod(method) {
 }
 
 function submitInvestmentPayment() {
+  console.log("📢 Submitting investment...");
+  
   if(!selectedInvestmentPaymentMethod) {
     alert('Please select payment method');
     return;
   }
+  
+  console.log("💰 Amount:", selectedPlanForPayment.price);
+  console.log("📊 Plan:", selectedPlanForPayment.name);
+  console.log("💳 Method:", selectedInvestmentPaymentMethod);
   
   if(selectedInvestmentPaymentMethod === 'balance') {
     if(currentUser.balance < selectedPlanForPayment.price) {
@@ -1359,7 +1365,7 @@ function submitInvestmentPayment() {
     const users = JSON.parse(localStorage.getItem('manivest_users_final'));
     const userIndex = users.findIndex(u => u.id === currentUser.id);
     
-    users[userIndex].investments.push({
+    const newInvestment = {
       id: Date.now(),
       planId: selectedPlanForPayment.id,
       planName: selectedPlanForPayment.name,
@@ -1374,18 +1380,27 @@ function submitInvestmentPayment() {
       screenshotUrl: pendingInvestmentScreenshot,
       lastTaskDate: null,
       tasksCompletedToday: 0
-    });
+    };
     
+    console.log("💾 Saving investment:", newInvestment);
+    
+    users[userIndex].investments.push(newInvestment);
     saveUsers(users);
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
+    
+    console.log("✅ Investment saved!");
+    console.log("📋 Total investments:", users[userIndex].investments.length);
+    console.log("📋 Pending count:", users[userIndex].investments.filter(i => i.status === 'pending').length);
     
     alert(`✅ Investment request submitted! Admin will verify.`);
     closePaymentModal();
     pendingInvestmentScreenshot = null;
     updateUserDashboard();
     
-    if(isAdmin()) updateAdminPanel();
+    if(isAdmin()) {
+      updateAdminPanel();
+    }
   }
 }
 
@@ -1463,7 +1478,6 @@ function requestWithdrawal() {
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === currentUser.id);
   
-  // Create withdrawal request (pending approval)
   const withdrawalRequest = {
     id: Date.now(),
     amount: amount,
@@ -1483,7 +1497,7 @@ function requestWithdrawal() {
   currentUser = users[userIndex];
   localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
   
-  alert(`💰 Withdrawal request of ₨ ${amount} submitted! Admin will verify and process.`);
+  alert(`💰 Withdrawal request of ₨ ${amount} submitted! Admin will verify.`);
   
   updateUserDashboard();
   updateWithdrawPage();
@@ -1502,21 +1516,18 @@ function updateAdminPanel() {
   const pendingWithdrawals = [];
   
   users.forEach(user => {
-    // Pending Investments
     user.investments.forEach(inv => {
       if(inv.status === 'pending') {
         pendingInvestments.push({ userId: user.id, userName: user.name, userEmail: user.email, investment: inv });
       }
     });
     
-    // Pending Deposits
     user.deposits.forEach(dep => {
       if(dep.status === 'pending') {
         pendingDeposits.push({ userId: user.id, userName: user.name, userEmail: user.email, deposit: dep });
       }
     });
     
-    // Pending Withdrawals
     if(user.withdrawalRequests && user.withdrawalRequests.length > 0) {
       user.withdrawalRequests.forEach(req => {
         if(req.status === 'pending') {
@@ -1526,7 +1537,6 @@ function updateAdminPanel() {
     }
   });
   
-  // Display Pending Investments
   const pendingInvestmentsDiv = document.getElementById('pendingInvestmentsList');
   if(pendingInvestmentsDiv) {
     if(pendingInvestments.length === 0) {
@@ -1549,7 +1559,6 @@ function updateAdminPanel() {
     }
   }
   
-  // Display Pending Deposits
   const pendingDepositsDiv = document.getElementById('pendingDepositsList');
   if(pendingDepositsDiv) {
     if(pendingDeposits.length === 0) {
@@ -1571,7 +1580,6 @@ function updateAdminPanel() {
     }
   }
   
-  // Display Pending Withdrawals
   const pendingWithdrawalsDiv = document.getElementById('pendingWithdrawalsList');
   if(pendingWithdrawalsDiv) {
     if(pendingWithdrawals.length === 0) {
@@ -1664,21 +1672,18 @@ function approveWithdrawal(userId, requestId) {
   const request = users[userIndex].withdrawalRequests[requestIndex];
   const amount = request.amount;
   
-  // Check if user still has sufficient balance
   if(users[userIndex].balance < amount) {
-    alert(`❌ User ${users[userIndex].name} doesn't have sufficient balance anymore!`);
+    alert(`❌ User ${users[userIndex].name} has insufficient balance!`);
     users[userIndex].withdrawalRequests.splice(requestIndex, 1);
     saveUsers(users);
     updateAdminPanel();
     return;
   }
   
-  // Deduct balance and mark as completed
   users[userIndex].balance -= amount;
   users[userIndex].totalWithdrawn += amount;
   users[userIndex].withdrawalRequests[requestIndex].status = 'completed';
   
-  // Add to withdrawal history
   users[userIndex].withdrawals.push({
     amount: amount,
     method: request.method,
@@ -1698,7 +1703,7 @@ function approveWithdrawal(userId, requestId) {
   }
   
   updateAdminPanel();
-  alert(`✅ Withdrawal of ₨ ${amount} approved for ${users[userIndex].name}! Money has been sent to their account.`);
+  alert(`✅ Withdrawal of ₨ ${amount} approved for ${users[userIndex].name}! Money sent.`);
 }
 
 function rejectWithdrawal(userId, requestId) {
