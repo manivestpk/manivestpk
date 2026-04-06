@@ -707,7 +707,7 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // ========== IMGBB API KEY (REPLACE WITH YOUR ACTUAL KEY) ==========
+    // ========== IMGBB API KEY (already set) ==========
     const IMGBB_API_KEY = "1d833006d31e860f3e9a0477203500cf";
 
     // ========== PLANS DATA ==========
@@ -861,7 +861,7 @@
         });
         document.getElementById('withdrawalHistory').innerHTML = withdrawalsHtml || '<div class="dashboard"><p>No withdrawal history.</p></div>';
 
-        // Today's tasks (FIXED - instant reward)
+        // Today's tasks (FIXED with 10-second timer)
         let tasksHtml = '';
         for (const doc of investmentsSnap.docs) {
             const inv = doc.data();
@@ -871,10 +871,10 @@
             const rewards = getTaskRewards(plan.dailyEarn, plan.tasksPerDay);
             const todayPK = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
             const todayDate = new Date(todayPK).toDateString();
-            const completedToday = inv.tasksCompletedToday || 0;
+            const completedToday = (inv.lastTaskDate === todayDate) ? (inv.tasksCompletedToday || 0) : 0;
             const remaining = plan.tasksPerDay - completedToday;
             if (remaining <= 0) {
-                tasksHtml += `<div class="dashboard"><p>✅ ${plan.name}: All tasks completed for today. Come back tomorrow after 12 AM (Pakistan time).</p></div>`;
+                tasksHtml += `<div class="dashboard"><p>✅ ${plan.name}: All tasks completed for today. Come back after 12 AM (Pakistan time).</p></div>`;
                 continue;
             }
             tasksHtml += `<div class="dashboard"><h4>${plan.name}</h4><p>Complete ${remaining} task(s) to earn ₨ ${plan.dailyEarn} today.</p>`;
@@ -882,7 +882,7 @@
                 const reward = rewards[i];
                 tasksHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; background:rgba(0,0,0,0.3); padding:0.5rem; border-radius:12px">
                     <span><i class="fab fa-youtube"></i> Watch video (${reward} PKR)</span>
-                    <button class="btn-primary" onclick="completeTask('${doc.id}', ${reward})">Complete Task →</button>
+                    <button class="btn-primary" onclick="completeTask('${doc.id}', ${reward}, this)">Complete Task →</button>
                 </div>`;
             }
             tasksHtml += `</div>`;
@@ -890,12 +890,22 @@
         document.getElementById('todayTasks').innerHTML = tasksHtml || '<div class="dashboard"><p>No active investments. Invest to start earning tasks!</p></div>';
     }
 
-    // FIXED: Instant task completion without transaction delay
-    window.completeTask = async (investmentId, reward) => {
+    // Timer variable to prevent multiple clicks
+    let activeTimer = false;
+
+    // FIXED: Task completion with 10-second timer
+    window.completeTask = async (investmentId, reward, buttonElement) => {
+        if (activeTimer) {
+            showToast('Task already in progress. Please wait...', true);
+            return;
+        }
         if (!currentUser) return;
+        
         const invDoc = await db.collection('investments').doc(investmentId).get();
         if (!invDoc.exists) return;
         const inv = invDoc.data();
+        
+        // Check if already completed today
         const todayPK = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
         const todayDate = new Date(todayPK).toDateString();
         let completedToday = inv.tasksCompletedToday || 0;
@@ -905,27 +915,58 @@
             showToast('You already completed all tasks for today!', true);
             return;
         }
-        const newCompleted = completedToday + 1;
-        // Update investment
-        await db.collection('investments').doc(investmentId).update({
-            tasksCompletedToday: newCompleted,
-            lastTaskDate: todayDate,
-            totalEarned: (inv.totalEarned || 0) + reward
-        });
-        // Update user balance
-        const userRef = db.collection('users').doc(currentUser.uid);
-        const userSnap = await userRef.get();
-        const oldBalance = userSnap.data().balance || 0;
-        await userRef.update({
-            balance: oldBalance + reward,
-            totalEarned: (userSnap.data().totalEarned || 0) + reward
-        });
-        showToast(`🎉 You earned ₨ ${reward}!`);
-        // Refresh current user data
-        const updatedUserDoc = await db.collection('users').doc(currentUser.uid).get();
-        currentUser = { uid: currentUser.uid, ...updatedUserDoc.data() };
-        document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
-        await loadDashboardData();
+        
+        // Disable button and start timer
+        activeTimer = true;
+        const originalText = buttonElement.innerText;
+        buttonElement.disabled = true;
+        buttonElement.innerText = '⏳ Watching video 10s...';
+        
+        // Countdown timer
+        let seconds = 10;
+        const interval = setInterval(() => {
+            seconds--;
+            if (seconds >= 0) {
+                buttonElement.innerText = `⏳ Watching video ${seconds}s...`;
+            }
+            if (seconds <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+        
+        // Wait 10 seconds
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        
+        // Complete the task
+        try {
+            const newCompleted = completedToday + 1;
+            // Update investment
+            await db.collection('investments').doc(investmentId).update({
+                tasksCompletedToday: newCompleted,
+                lastTaskDate: todayDate,
+                totalEarned: (inv.totalEarned || 0) + reward
+            });
+            // Update user balance
+            const userRef = db.collection('users').doc(currentUser.uid);
+            const userSnap = await userRef.get();
+            const oldBalance = userSnap.data().balance || 0;
+            await userRef.update({
+                balance: oldBalance + reward,
+                totalEarned: (userSnap.data().totalEarned || 0) + reward
+            });
+            // Refresh current user
+            const updatedUserDoc = await db.collection('users').doc(currentUser.uid).get();
+            currentUser = { uid: currentUser.uid, ...updatedUserDoc.data() };
+            document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
+            await loadDashboardData();
+            showToast(`🎉 Task completed! You earned ₨ ${reward}!`);
+        } catch (err) {
+            showToast('Error completing task: ' + err.message, true);
+        } finally {
+            activeTimer = false;
+            buttonElement.disabled = false;
+            buttonElement.innerText = originalText;
+        }
     };
 
     // ========== DEPOSIT ==========
