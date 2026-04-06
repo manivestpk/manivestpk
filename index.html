@@ -1507,8 +1507,11 @@ function requestWithdrawal() {
 }
 
 // ============ ADMIN FUNCTIONS ==========
+ 
 function updateAdminPanel() {
   if(!isAdmin()) return;
+  
+  console.log("🔄 Admin panel refreshing...");
   
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const pendingInvestments = [];
@@ -1516,18 +1519,21 @@ function updateAdminPanel() {
   const pendingWithdrawals = [];
   
   users.forEach(user => {
+    // Pending Investments
     user.investments.forEach(inv => {
       if(inv.status === 'pending') {
         pendingInvestments.push({ userId: user.id, userName: user.name, userEmail: user.email, investment: inv });
       }
     });
     
+    // Pending Deposits
     user.deposits.forEach(dep => {
       if(dep.status === 'pending') {
         pendingDeposits.push({ userId: user.id, userName: user.name, userEmail: user.email, deposit: dep });
       }
     });
     
+    // Pending Withdrawals
     if(user.withdrawalRequests && user.withdrawalRequests.length > 0) {
       user.withdrawalRequests.forEach(req => {
         if(req.status === 'pending') {
@@ -1537,6 +1543,11 @@ function updateAdminPanel() {
     }
   });
   
+  console.log("📋 Pending Investments:", pendingInvestments.length);
+  console.log("📋 Pending Deposits:", pendingDeposits.length);
+  console.log("📋 Pending Withdrawals:", pendingWithdrawals.length);
+  
+  // Display Pending Investments
   const pendingInvestmentsDiv = document.getElementById('pendingInvestmentsList');
   if(pendingInvestmentsDiv) {
     if(pendingInvestments.length === 0) {
@@ -1559,6 +1570,7 @@ function updateAdminPanel() {
     }
   }
   
+  // Similar for deposits and withdrawals...
   const pendingDepositsDiv = document.getElementById('pendingDepositsList');
   if(pendingDepositsDiv) {
     if(pendingDeposits.length === 0) {
