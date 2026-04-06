@@ -762,8 +762,8 @@
 </footer>
 
 <script>
-// ============ IMGBB API KEY (Yahan Apni API Key Daalo) ============
-const IMGBB_API_KEY = "000d3f5548625d589cb076853cc47236";
+// ============ IMGBB API KEY ============
+const IMGBB_API_KEY = "YOUR_IMGBB_API_KEY_HERE";
 
 // ============ PLANS DATA ============
 const plansData = [
@@ -859,18 +859,16 @@ function saveUsers(users) {
   localStorage.setItem('manivest_users_final', JSON.stringify(users));
 }
 
-// ============ IMGBB UPLOAD FUNCTION ============
+// ============ IMGBB UPLOAD ============
 async function uploadToImgBB(file) {
   return new Promise((resolve, reject) => {
     if (!IMGBB_API_KEY || IMGBB_API_KEY === "YOUR_IMGBB_API_KEY_HERE") {
       reject(new Error("Please configure ImgBB API key"));
       return;
     }
-    
     const formData = new FormData();
     formData.append("image", file);
     formData.append("key", IMGBB_API_KEY);
-    
     fetch("https://api.imgbb.com/1/upload", {
       method: "POST",
       body: formData
@@ -887,7 +885,7 @@ async function uploadToImgBB(file) {
   });
 }
 
-// ============ UI FUNCTIONS ============
+// ============ UI HELPERS ============
 function openTermsModal() { document.getElementById('termsModal').style.display = 'flex'; }
 function closeTermsModal() { document.getElementById('termsModal').style.display = 'none'; }
 
@@ -898,14 +896,11 @@ function register() {
   const password = document.getElementById('regPassword').value;
   const confirm = document.getElementById('regConfirmPassword').value;
   const termsChecked = document.getElementById('registerTermsCheckbox').checked;
-  
   if(!name || !phone || !email || !password) { alert('Please fill all fields'); return; }
   if(password !== confirm) { alert('Passwords do not match'); return; }
   if(!termsChecked) { alert('Please accept Terms & Conditions'); return; }
-  
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   if(users.find(u => u.email === email)) { alert('Email already registered'); return; }
-  
   const newUser = {
     id: Date.now(),
     name, phone, email, password,
@@ -915,7 +910,6 @@ function register() {
     isAdmin: false,
     createdAt: new Date().toISOString()
   };
-  
   users.push(newUser);
   saveUsers(users);
   alert('Registration successful! Please login.');
@@ -926,14 +920,10 @@ function login() {
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
   const termsChecked = document.getElementById('loginTermsCheckbox').checked;
-  
   if(!termsChecked) { alert('Please accept Terms & Conditions'); return; }
-  
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const user = users.find(u => (u.email === email || u.phone === email) && u.password === password);
-  
   if(!user) { alert('Invalid credentials'); return; }
-  
   currentUser = user;
   localStorage.setItem('manivest_current_user', JSON.stringify(user));
   showApp();
@@ -959,14 +949,12 @@ function showApp() {
   document.getElementById('headerUserName').innerText = currentUser.name;
   document.getElementById('referralLink').innerHTML = `manivest.pk/ref/${currentUser.referralCode}`;
   document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
-  
   if(isAdmin()) {
     document.getElementById('adminTabLink').style.display = 'block';
     updateAdminPanel();
   } else {
     document.getElementById('adminTabLink').style.display = 'none';
   }
-  
   updateUserDashboard();
   updatePlansUI();
   updateWithdrawPage();
@@ -983,7 +971,6 @@ function updateUserDashboard() {
   const myInvestments = document.getElementById('myInvestments');
   const depositHistory = document.getElementById('depositHistory');
   const withdrawalHistory = document.getElementById('withdrawalHistory');
-  
   quickStats.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem">
       <div><small>💰 Balance</small><br><strong style="color:#ffd700;font-size:1.5rem">₨ ${currentUser.balance}</strong></div>
@@ -991,7 +978,6 @@ function updateUserDashboard() {
       <div><small>💸 Total Withdrawn</small><br><strong>₨ ${currentUser.totalWithdrawn}</strong></div>
     </div>
   `;
-  
   userDashboardInfo.innerHTML = `
     <p><i class="fas fa-user"></i> Name: ${currentUser.name}</p>
     <p><i class="fas fa-phone"></i> Phone: ${currentUser.phone}</p>
@@ -999,7 +985,6 @@ function updateUserDashboard() {
     <p><i class="fas fa-code-branch"></i> Referral Code: ${currentUser.referralCode}</p>
     ${isAdmin() ? '<p><span class="admin-badge">👑 Administrator</span></p>' : ''}
   `;
-  
   if(currentUser.investments.length === 0) {
     myInvestments.innerHTML = '<div class="dashboard"><p>No active investments. <a onclick="showTab(\'plans\')" style="color:#00e5ff;cursor:pointer">Invest now →</a></p></div>';
   } else {
@@ -1014,7 +999,6 @@ function updateUserDashboard() {
       </div>
     `).join('');
   }
-  
   if(currentUser.deposits.length === 0) {
     depositHistory.innerHTML = '<div class="dashboard"><p>No deposit history yet.</p></div>';
   } else {
@@ -1025,7 +1009,6 @@ function updateUserDashboard() {
       </div>
     `).join('');
   }
-  
   if(currentUser.withdrawals.length === 0) {
     withdrawalHistory.innerHTML = '<div class="dashboard"><p>No withdrawal history yet.</p></div>';
   } else {
@@ -1041,26 +1024,15 @@ function completeTask(investmentId) {
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === currentUser.id);
   const investment = users[userIndex].investments.find(inv => inv.id === investmentId);
-  
-  if(!investment || investment.status !== 'active') {
-    alert('Investment not active');
-    return;
-  }
-  
+  if(!investment || investment.status !== 'active') { alert('Investment not active'); return; }
   const today = new Date().toDateString();
-  if(investment.lastTaskDate === today) {
-    alert('Today\'s task already completed!');
-    return;
-  }
-  
+  if(investment.lastTaskDate === today) { alert('Today\'s task already completed!'); return; }
   alert('🎬 Watching video...');
-  
   setTimeout(() => {
     users[userIndex].investments = users[userIndex].investments.map(inv => {
       if(inv.id === investmentId) {
         inv.lastTaskDate = today;
         inv.tasksCompletedToday = (inv.tasksCompletedToday || 0) + 1;
-        
         if(inv.tasksCompletedToday >= inv.tasksPerDay) {
           users[userIndex].balance += inv.dailyEarn;
           users[userIndex].totalEarned += inv.dailyEarn;
@@ -1069,11 +1041,9 @@ function completeTask(investmentId) {
       }
       return inv;
     });
-    
     saveUsers(users);
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
-    
     alert(`✅ You earned ₨ ${investment.dailyEarn}!`);
     updateUserDashboard();
     updateWithdrawPage();
@@ -1104,17 +1074,15 @@ function updatePlansUI() {
   });
 }
 
-// ============ DEPOSIT SYSTEM WITH IMGBB ==========
+// ============ DEPOSIT ============
 let selectedDepositMethod = null;
 
 function selectDepositMethod(method) {
   selectedDepositMethod = method;
   document.querySelectorAll('#depositMethods .payment-option').forEach(el => el.classList.remove('selected'));
   event.target.classList.add('selected');
-  
   const detailsDiv = document.getElementById('depositDetails');
   const screenshotDiv = document.getElementById('depositScreenshotUpload');
-  
   if(method === 'easypaisa') {
     detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0">
       <p><strong>EasyPaisa Account Details:</strong></p>
@@ -1140,17 +1108,13 @@ function selectDepositMethod(method) {
       <p>Contact support for card payment details.</p>
     </div>`;
   }
-  
   screenshotDiv.style.display = 'block';
-  
   const fileInput = document.getElementById('depositProof');
   fileInput.onchange = async function(e) {
     const file = e.target.files[0];
     if(!file) return;
-    
     const statusDiv = document.getElementById('depositUploadStatus');
     statusDiv.innerHTML = '<div class="loading-spinner"></div> Uploading screenshot...';
-    
     try {
       const imageUrl = await uploadToImgBB(file);
       pendingDepositFile = imageUrl;
@@ -1164,23 +1128,11 @@ function selectDepositMethod(method) {
 
 async function submitDeposit() {
   const amount = parseFloat(document.getElementById('depositAmount').value);
-  
-  if(!amount || amount < 500) {
-    alert('Please enter valid amount (Minimum ₨ 500)');
-    return;
-  }
-  if(!selectedDepositMethod) {
-    alert('Please select payment method');
-    return;
-  }
-  if(!pendingDepositFile) {
-    alert('Please upload screenshot proof');
-    return;
-  }
-  
+  if(!amount || amount < 500) { alert('Please enter valid amount (Minimum ₨ 500)'); return; }
+  if(!selectedDepositMethod) { alert('Please select payment method'); return; }
+  if(!pendingDepositFile) { alert('Please upload screenshot proof'); return; }
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === currentUser.id);
-  
   users[userIndex].deposits.push({
     id: Date.now(),
     amount: amount,
@@ -1189,23 +1141,19 @@ async function submitDeposit() {
     date: new Date().toISOString(),
     screenshotUrl: pendingDepositFile
   });
-  
   saveUsers(users);
   currentUser = users[userIndex];
   localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
-  
   alert(`✅ Deposit request of ₨ ${amount} submitted! Admin will verify.`);
-  
   document.getElementById('depositAmount').value = '';
   document.getElementById('depositUploadStatus').innerHTML = '';
   pendingDepositFile = null;
   document.getElementById('depositProof').value = '';
   updateUserDashboard();
-  
   if(isAdmin()) updateAdminPanel();
 }
 
-// ============ INVESTMENT PAYMENT WITH IMGBB ==========
+// ============ INVESTMENT PAYMENT ==========
 let selectedPlanForPayment = null;
 let selectedInvestmentPaymentMethod = null;
 let pendingInvestmentScreenshot = null;
@@ -1218,7 +1166,6 @@ function showPaymentModal(planId) {
     <p>Amount: <strong style="color:#ffd700">₨ ${selectedPlanForPayment.price}</strong></p>
     <p>Daily Earnings: <strong>₨ ${selectedPlanForPayment.dailyEarn}</strong></p>
     <p>Total Return: <strong>₨ ${selectedPlanForPayment.totalProfit}</strong> (200% ROI)</p>
-    
     <h3 style="margin-top:1rem">Select Payment Method</h3>
     <div class="payment-methods" id="investmentPaymentMethods">
       <div class="payment-option" onclick="selectInvestmentPaymentMethod('easypaisa')"><i class="fas fa-wallet"></i> EasyPaisa</div>
@@ -1226,9 +1173,7 @@ function showPaymentModal(planId) {
       <div class="payment-option" onclick="selectInvestmentPaymentMethod('bank')"><i class="fas fa-university"></i> Bank Transfer</div>
       <div class="payment-option" onclick="selectInvestmentPaymentMethod('balance')"><i class="fas fa-coins"></i> Use Balance</div>
     </div>
-    
     <div id="investmentPaymentDetails"></div>
-    
     <div class="screenshot-upload" id="investmentScreenshotUpload" style="display:none">
       <p>Upload Payment Screenshot/Proof</p>
       <input type="file" id="investmentProof" accept="image/*" style="display:none">
@@ -1239,18 +1184,14 @@ function showPaymentModal(planId) {
       <button class="btn-primary" style="margin-top:0.5rem" onclick="submitInvestmentPayment()">Submit Investment →</button>
     </div>
   `;
-  
   document.getElementById('paymentModal').style.display = 'flex';
-  
   const fileInput = document.getElementById('investmentProof');
   if(fileInput) {
     fileInput.onchange = async function(e) {
       const file = e.target.files[0];
       if(!file) return;
-      
       const statusDiv = document.getElementById('investmentUploadStatus');
       statusDiv.innerHTML = '<div class="loading-spinner"></div> Uploading screenshot...';
-      
       try {
         const imageUrl = await uploadToImgBB(file);
         pendingInvestmentScreenshot = imageUrl;
@@ -1267,10 +1208,8 @@ function selectInvestmentPaymentMethod(method) {
   selectedInvestmentPaymentMethod = method;
   document.querySelectorAll('#investmentPaymentMethods .payment-option').forEach(el => el.classList.remove('selected'));
   event.target.classList.add('selected');
-  
   const detailsDiv = document.getElementById('investmentPaymentDetails');
   const screenshotDiv = document.getElementById('investmentScreenshotUpload');
-  
   if(method === 'balance') {
     if(currentUser.balance >= selectedPlanForPayment.price) {
       detailsDiv.innerHTML = `<div style="background:rgba(0,229,255,0.1);padding:1rem;border-radius:16px;margin:1rem 0;text-align:center">
@@ -1309,26 +1248,11 @@ function selectInvestmentPaymentMethod(method) {
 }
 
 function submitInvestmentPayment() {
-  console.log("📢 Submitting investment...");
-  
-  if(!selectedInvestmentPaymentMethod) {
-    alert('Please select payment method');
-    return;
-  }
-  
-  console.log("💰 Amount:", selectedPlanForPayment.price);
-  console.log("📊 Plan:", selectedPlanForPayment.name);
-  console.log("💳 Method:", selectedInvestmentPaymentMethod);
-  
+  if(!selectedInvestmentPaymentMethod) { alert('Please select payment method'); return; }
   if(selectedInvestmentPaymentMethod === 'balance') {
-    if(currentUser.balance < selectedPlanForPayment.price) {
-      alert('Insufficient balance');
-      return;
-    }
-    
+    if(currentUser.balance < selectedPlanForPayment.price) { alert('Insufficient balance'); return; }
     const users = JSON.parse(localStorage.getItem('manivest_users_final'));
     const userIndex = users.findIndex(u => u.id === currentUser.id);
-    
     users[userIndex].balance -= selectedPlanForPayment.price;
     users[userIndex].investments.push({
       id: Date.now(),
@@ -1345,27 +1269,19 @@ function submitInvestmentPayment() {
       lastTaskDate: null,
       tasksCompletedToday: 0
     });
-    
     saveUsers(users);
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
-    
     alert(`✅ Successfully invested ₨ ${selectedPlanForPayment.price} using balance!`);
     closePaymentModal();
     updateUserDashboard();
     updateWithdrawPage();
     document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
-    
   } else {
-    if(!pendingInvestmentScreenshot) {
-      alert('Please upload payment screenshot');
-      return;
-    }
-    
+    if(!pendingInvestmentScreenshot) { alert('Please upload payment screenshot'); return; }
     const users = JSON.parse(localStorage.getItem('manivest_users_final'));
     const userIndex = users.findIndex(u => u.id === currentUser.id);
-    
-    const newInvestment = {
+    users[userIndex].investments.push({
       id: Date.now(),
       planId: selectedPlanForPayment.id,
       planName: selectedPlanForPayment.name,
@@ -1380,27 +1296,15 @@ function submitInvestmentPayment() {
       screenshotUrl: pendingInvestmentScreenshot,
       lastTaskDate: null,
       tasksCompletedToday: 0
-    };
-    
-    console.log("💾 Saving investment:", newInvestment);
-    
-    users[userIndex].investments.push(newInvestment);
+    });
     saveUsers(users);
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
-    
-    console.log("✅ Investment saved!");
-    console.log("📋 Total investments:", users[userIndex].investments.length);
-    console.log("📋 Pending count:", users[userIndex].investments.filter(i => i.status === 'pending').length);
-    
     alert(`✅ Investment request submitted! Admin will verify.`);
     closePaymentModal();
     pendingInvestmentScreenshot = null;
     updateUserDashboard();
-    
-    if(isAdmin()) {
-      updateAdminPanel();
-    }
+    if(isAdmin()) updateAdminPanel();
   }
 }
 
@@ -1409,13 +1313,12 @@ function closePaymentModal() {
   pendingInvestmentScreenshot = null;
 }
 
-// ============ WITHDRAW SYSTEM WITH ADMIN APPROVAL ==========
+// ============ WITHDRAW ==========
 let selectedWithdrawMethod = null;
 
 function updateWithdrawPage() {
   const withdrawBalance = document.getElementById('withdrawBalance');
   if(withdrawBalance) withdrawBalance.innerHTML = `₨ ${currentUser.balance}`;
-  
   const withdrawMethodsDiv = document.getElementById('withdrawMethods');
   if(withdrawMethodsDiv) {
     withdrawMethodsDiv.innerHTML = `
@@ -1430,7 +1333,6 @@ function selectWithdrawMethod(method) {
   selectedWithdrawMethod = method;
   document.querySelectorAll('#withdrawMethods .payment-option').forEach(el => el.classList.remove('selected'));
   event.target.classList.add('selected');
-  
   let detailsHtml = '';
   if(method === 'easypaisa') {
     detailsHtml = `<input type="text" id="withdrawAccount" class="auth-input" placeholder="EasyPaisa Account Number">`;
@@ -1443,10 +1345,8 @@ function selectWithdrawMethod(method) {
       <input type="text" id="withdrawHolderName" class="auth-input" placeholder="Account Holder Name">
     `;
   }
-  
   const existingDiv = document.getElementById('withdrawDetailsDiv');
   if(existingDiv) existingDiv.remove();
-  
   const newDiv = document.createElement('div');
   newDiv.id = 'withdrawDetailsDiv';
   newDiv.innerHTML = detailsHtml;
@@ -1455,11 +1355,9 @@ function selectWithdrawMethod(method) {
 
 function requestWithdrawal() {
   const amount = parseFloat(document.getElementById('withdrawAmount').value);
-  
   if(!amount || amount <= 0) { alert('Please enter valid amount'); return; }
   if(amount > currentUser.balance) { alert('Insufficient balance'); return; }
   if(!selectedWithdrawMethod) { alert('Please select withdrawal method'); return; }
-  
   const accountDetails = {};
   if(selectedWithdrawMethod === 'bank') {
     const accountNo = document.getElementById('withdrawAccount')?.value;
@@ -1474,11 +1372,10 @@ function requestWithdrawal() {
     if(!account) { alert('Please enter account number'); return; }
     accountDetails.accountNo = account;
   }
-  
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === currentUser.id);
-  
-  const withdrawalRequest = {
+  users[userIndex].withdrawalRequests = users[userIndex].withdrawalRequests || [];
+  users[userIndex].withdrawalRequests.push({
     id: Date.now(),
     amount: amount,
     method: selectedWithdrawMethod,
@@ -1488,52 +1385,36 @@ function requestWithdrawal() {
     userName: currentUser.name,
     userEmail: currentUser.email,
     userId: currentUser.id
-  };
-  
-  users[userIndex].withdrawalRequests = users[userIndex].withdrawalRequests || [];
-  users[userIndex].withdrawalRequests.push(withdrawalRequest);
-  
+  });
   saveUsers(users);
   currentUser = users[userIndex];
   localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
-  
   alert(`💰 Withdrawal request of ₨ ${amount} submitted! Admin will verify.`);
-  
   updateUserDashboard();
   updateWithdrawPage();
   document.getElementById('withdrawAmount').value = '';
-  
   if(isAdmin()) updateAdminPanel();
 }
 
-// ============ ADMIN FUNCTIONS ==========
- 
+// ============ ADMIN PANEL (FIXED) ==========
 function updateAdminPanel() {
   if(!isAdmin()) return;
-  
   console.log("🔄 Admin panel refreshing...");
-  
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const pendingInvestments = [];
   const pendingDeposits = [];
   const pendingWithdrawals = [];
-  
   users.forEach(user => {
-    // Pending Investments
     user.investments.forEach(inv => {
       if(inv.status === 'pending') {
         pendingInvestments.push({ userId: user.id, userName: user.name, userEmail: user.email, investment: inv });
       }
     });
-    
-    // Pending Deposits
     user.deposits.forEach(dep => {
       if(dep.status === 'pending') {
         pendingDeposits.push({ userId: user.id, userName: user.name, userEmail: user.email, deposit: dep });
       }
     });
-    
-    // Pending Withdrawals
     if(user.withdrawalRequests && user.withdrawalRequests.length > 0) {
       user.withdrawalRequests.forEach(req => {
         if(req.status === 'pending') {
@@ -1542,12 +1423,9 @@ function updateAdminPanel() {
       });
     }
   });
-  
   console.log("📋 Pending Investments:", pendingInvestments.length);
   console.log("📋 Pending Deposits:", pendingDeposits.length);
   console.log("📋 Pending Withdrawals:", pendingWithdrawals.length);
-  
-  // Display Pending Investments
   const pendingInvestmentsDiv = document.getElementById('pendingInvestmentsList');
   if(pendingInvestmentsDiv) {
     if(pendingInvestments.length === 0) {
@@ -1569,8 +1447,6 @@ function updateAdminPanel() {
       `).join('');
     }
   }
-  
-  // Similar for deposits and withdrawals...
   const pendingDepositsDiv = document.getElementById('pendingDepositsList');
   if(pendingDepositsDiv) {
     if(pendingDeposits.length === 0) {
@@ -1591,7 +1467,6 @@ function updateAdminPanel() {
       `).join('');
     }
   }
-  
   const pendingWithdrawalsDiv = document.getElementById('pendingWithdrawalsList');
   if(pendingWithdrawalsDiv) {
     if(pendingWithdrawals.length === 0) {
@@ -1619,19 +1494,15 @@ function approveInvestment(userId, investmentId) {
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === userId);
   const investmentIndex = users[userIndex].investments.findIndex(inv => inv.id === investmentId);
-  
   users[userIndex].investments[investmentIndex].status = 'active';
   users[userIndex].investments[investmentIndex].lastTaskDate = null;
   users[userIndex].investments[investmentIndex].tasksCompletedToday = 0;
-  
   saveUsers(users);
-  
   if(currentUser && currentUser.id === userId) {
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
     updateUserDashboard();
   }
-  
   updateAdminPanel();
   alert(`✅ Investment approved for ${users[userIndex].name}!`);
 }
@@ -1649,20 +1520,16 @@ function approveDeposit(userId, depositId) {
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === userId);
   const depositIndex = users[userIndex].deposits.findIndex(d => d.id === depositId);
-  
   const depositAmount = users[userIndex].deposits[depositIndex].amount;
   users[userIndex].deposits[depositIndex].status = 'completed';
   users[userIndex].balance += depositAmount;
-  
   saveUsers(users);
-  
   if(currentUser && currentUser.id === userId) {
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
     updateUserDashboard();
     document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
   }
-  
   updateAdminPanel();
   alert(`✅ Deposit of ₨ ${depositAmount} approved for ${users[userIndex].name}!`);
 }
@@ -1680,10 +1547,8 @@ function approveWithdrawal(userId, requestId) {
   const users = JSON.parse(localStorage.getItem('manivest_users_final'));
   const userIndex = users.findIndex(u => u.id === userId);
   const requestIndex = users[userIndex].withdrawalRequests.findIndex(r => r.id === requestId);
-  
   const request = users[userIndex].withdrawalRequests[requestIndex];
   const amount = request.amount;
-  
   if(users[userIndex].balance < amount) {
     alert(`❌ User ${users[userIndex].name} has insufficient balance!`);
     users[userIndex].withdrawalRequests.splice(requestIndex, 1);
@@ -1691,11 +1556,9 @@ function approveWithdrawal(userId, requestId) {
     updateAdminPanel();
     return;
   }
-  
   users[userIndex].balance -= amount;
   users[userIndex].totalWithdrawn += amount;
   users[userIndex].withdrawalRequests[requestIndex].status = 'completed';
-  
   users[userIndex].withdrawals.push({
     amount: amount,
     method: request.method,
@@ -1703,9 +1566,7 @@ function approveWithdrawal(userId, requestId) {
     status: 'completed',
     date: new Date().toISOString()
   });
-  
   saveUsers(users);
-  
   if(currentUser && currentUser.id === userId) {
     currentUser = users[userIndex];
     localStorage.setItem('manivest_current_user', JSON.stringify(currentUser));
@@ -1713,7 +1574,6 @@ function approveWithdrawal(userId, requestId) {
     updateWithdrawPage();
     document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
   }
-  
   updateAdminPanel();
   alert(`✅ Withdrawal of ₨ ${amount} approved for ${users[userIndex].name}! Money sent.`);
 }
@@ -1727,7 +1587,7 @@ function rejectWithdrawal(userId, requestId) {
   alert(`❌ Withdrawal request rejected.`);
 }
 
-// ============ BUILD FUNCTIONS ==========
+// ============ BUILD UI ============
 function buildSlider() {
   const slider = document.getElementById('slider');
   if(!slider) return;
@@ -1821,7 +1681,7 @@ function buildFaqGrid() {
 
 function toggleFaq(el) { el.classList.toggle('active'); }
 
-// ============ SLIDER NAVIGATION ==========
+// ============ SLIDER ==========
 let slideIndex = 0;
 function showSlide(index) {
   const slider = document.getElementById('slider');
@@ -1841,7 +1701,6 @@ let activityNames = [];
 for(let i=0;i<10000;i++) activityNames.push(pakistaniNames[Math.floor(Math.random()*pakistaniNames.length)]+" "+Math.floor(Math.random()*1000));
 activityNames = [...new Set(activityNames)];
 let nameIdx=0;
-
 function addFakeActivity() {
   const div = document.getElementById('activityList');
   if(!div) return;
@@ -1858,7 +1717,7 @@ function addFakeActivity() {
   while(div.children.length>12) div.removeChild(div.lastChild);
 }
 
-// ============ STATS UPDATE ==========
+// ============ STATS ==========
 let userCount = 52847, taskCount = 31452, totalPaid = 10.2;
 setInterval(() => {
   userCount += Math.floor(Math.random() * 8);
@@ -1886,7 +1745,7 @@ function updateCountdown() {
 setInterval(updateCountdown,1000);
 updateCountdown();
 
-// ============ UI FUNCTIONS ==========
+// ============ UI ============
 function switchAuthTab(tab) {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
@@ -1921,18 +1780,16 @@ function copyLink() {
   alert('✅ Referral link copied!');
 }
 
-// ============ INITIALIZATION ==========
+// ============ INIT ============
 loadUsers();
 const savedUser = localStorage.getItem('manivest_current_user');
 if(savedUser) {
   currentUser = JSON.parse(savedUser);
   showApp();
 }
-
 if(IMGBB_API_KEY === "YOUR_IMGBB_API_KEY_HERE") {
   console.warn("⚠️ Please configure ImgBB API key");
 }
-
 buildSlider();
 showSlide(0);
 buildOffersGrid();
