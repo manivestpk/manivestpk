@@ -840,22 +840,30 @@
         }
     });
 
-    async function loadDashboardData() {
-        if (!currentUser) return;
-        document.getElementById('quickStats').innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem">
-                <div><small>💰 Balance</small><br><strong style="color:#ffd700;font-size:1.5rem">₨ ${currentUser.balance}</strong></div>
-                <div><small>📈 Total Earned</small><br><strong>₨ ${currentUser.totalEarned}</strong></div>
-                <div><small>💸 Total Withdrawn</small><br><strong>₨ ${currentUser.totalWithdrawn}</strong></div>
-            </div>
-        `;
-        document.getElementById('userDashboardInfo').innerHTML = `
-            <p><i class="fas fa-user"></i> Name: ${currentUser.name}</p>
-            <p><i class="fas fa-phone"></i> Phone: ${currentUser.phone}</p>
-            <p><i class="fas fa-envelope"></i> Email: ${currentUser.email}</p>
-            <p><i class="fas fa-code-branch"></i> Referral Code: ${currentUser.referralCode}</p>
-        `;
-
+   async function loadDashboardData() {
+    if (!currentUser) return;
+    
+    // ✅ Refresh current user data from Firestore (so totalWithdrawn updates)
+    const userDoc = await db.collection('users').doc(currentUser.uid).get();
+    currentUser = { uid: currentUser.uid, ...userDoc.data() };
+    
+    document.getElementById('quickStats').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem">
+            <div><small>💰 Balance</small><br><strong style="color:#ffd700;font-size:1.5rem">₨ ${currentUser.balance}</strong></div>
+            <div><small>📈 Total Earned</small><br><strong>₨ ${currentUser.totalEarned}</strong></div>
+            <div><small>💸 Total Withdrawn</small><br><strong>₨ ${currentUser.totalWithdrawn}</strong></div>
+        </div>
+    `;
+    document.getElementById('userDashboardInfo').innerHTML = `
+        <p><i class="fas fa-user"></i> Name: ${currentUser.name}</p>
+        <p><i class="fas fa-phone"></i> Phone: ${currentUser.phone}</p>
+        <p><i class="fas fa-envelope"></i> Email: ${currentUser.email}</p>
+        <p><i class="fas fa-code-branch"></i> Referral Code: ${currentUser.referralCode}</p>
+    `;
+    
+    // ... baaki code waisa hi rahega (investments, deposits, etc.)
+    // (tumhara original code yahan continue hoga)
+}
         const investmentsSnap = await db.collection('investments').where('userId', '==', currentUser.uid).get();
         let investmentsHtml = '';
         investmentsSnap.forEach(doc => {
