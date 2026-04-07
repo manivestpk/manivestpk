@@ -710,7 +710,7 @@
     // ========== IMGBB API KEY ==========
     const IMGBB_API_KEY = "1d833006d31e860f3e9a0477203500cf";
 
-    // ========== PAYMENT SETTINGS (Fetch from Firebase) ==========
+    // ========== PAYMENT SETTINGS (Default values - will be replaced by Firebase) ==========
     let paymentSettings = {
         easypaisa: { accountNo: "03XX-1234567", name: "ManiVest Pvt Ltd" },
         jazzcash: { accountNo: "03XX-7654321", name: "ManiVest Pvt Ltd" },
@@ -727,9 +727,12 @@
                 if (data.jazzcash) paymentSettings.jazzcash = data.jazzcash;
                 if (data.bank) paymentSettings.bank = data.bank;
                 if (data.cardInstructions) paymentSettings.cardInstructions = data.cardInstructions;
+                console.log("✅ Payment settings loaded from Firebase:", paymentSettings);
+            } else {
+                console.log("⚠️ No payment settings in Firebase, using defaults");
             }
         } catch (err) {
-            console.log("Using default payment settings");
+            console.error("❌ Error loading payment settings:", err);
         }
     }
 
