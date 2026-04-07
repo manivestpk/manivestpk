@@ -707,8 +707,31 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // ========== IMGBB API KEY (already set) ==========
+    // ========== IMGBB API KEY ==========
     const IMGBB_API_KEY = "1d833006d31e860f3e9a0477203500cf";
+
+    // ========== PAYMENT SETTINGS (Fetch from Firebase) ==========
+    let paymentSettings = {
+        easypaisa: { accountNo: "03XX-1234567", name: "ManiVest Pvt Ltd" },
+        jazzcash: { accountNo: "03XX-7654321", name: "ManiVest Pvt Ltd" },
+        bank: { accountNo: "1234-5678901", bankName: "Meezan Bank", name: "ManiVest Investments", iban: "PK36MEZN0012345678901" },
+        cardInstructions: "Contact support for card payment details."
+    };
+
+    async function loadPaymentSettings() {
+        try {
+            const settingsDoc = await db.collection('adminSettings').doc('paymentMethods').get();
+            if (settingsDoc.exists) {
+                const data = settingsDoc.data();
+                if (data.easypaisa) paymentSettings.easypaisa = data.easypaisa;
+                if (data.jazzcash) paymentSettings.jazzcash = data.jazzcash;
+                if (data.bank) paymentSettings.bank = data.bank;
+                if (data.cardInstructions) paymentSettings.cardInstructions = data.cardInstructions;
+            }
+        } catch (err) {
+            console.log("Using default payment settings");
+        }
+    }
 
     // ========== PLANS DATA ==========
     const plansData = [
@@ -792,12 +815,13 @@
             const doc = await db.collection('users').doc(user.uid).get();
             if (!doc.exists) { await auth.signOut(); return; }
             currentUser = { uid: user.uid, ...doc.data() };
+            await loadPaymentSettings();
             document.getElementById('authSection').style.display = 'none';
             document.getElementById('appSection').style.display = 'block';
             document.getElementById('userHeaderInfo').style.display = 'flex';
             document.getElementById('welcomeName').innerText = currentUser.name;
             document.getElementById('headerUserName').innerText = currentUser.name;
-            document.getElementById('referralLink').innerHTML = `https://manivestpk.netlify.app/ref/${currentUser.referralCode}`;
+            document.getElementById('referralLink').innerHTML = `https://manivest-pk.netlify.app/ref/${currentUser.referralCode}`;
             document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
             await loadDashboardData();
             updatePlansUI();
@@ -861,7 +885,7 @@
         });
         document.getElementById('withdrawalHistory').innerHTML = withdrawalsHtml || '<div class="dashboard"><p>No withdrawal history.</p></div>';
 
-        // Today's tasks (FIXED with 10-second timer)
+        // Today's tasks (with 10-second timer)
         let tasksHtml = '';
         for (const doc of investmentsSnap.docs) {
             const inv = doc.data();
@@ -893,7 +917,7 @@
     // Timer variable to prevent multiple clicks
     let activeTimer = false;
 
-    // FIXED: Task completion with 10-second timer
+    // Task completion with 10-second timer
     window.completeTask = async (investmentId, reward, buttonElement) => {
         if (activeTimer) {
             showToast('Task already in progress. Please wait...', true);
@@ -905,7 +929,6 @@
         if (!invDoc.exists) return;
         const inv = invDoc.data();
         
-        // Check if already completed today
         const todayPK = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
         const todayDate = new Date(todayPK).toDateString();
         let completedToday = inv.tasksCompletedToday || 0;
@@ -916,13 +939,11 @@
             return;
         }
         
-        // Disable button and start timer
         activeTimer = true;
         const originalText = buttonElement.innerText;
         buttonElement.disabled = true;
         buttonElement.innerText = '⏳ Watching video 10s...';
         
-        // Countdown timer
         let seconds = 10;
         const interval = setInterval(() => {
             seconds--;
@@ -934,19 +955,15 @@
             }
         }, 1000);
         
-        // Wait 10 seconds
         await new Promise(resolve => setTimeout(resolve, 10000));
         
-        // Complete the task
         try {
             const newCompleted = completedToday + 1;
-            // Update investment
             await db.collection('investments').doc(investmentId).update({
                 tasksCompletedToday: newCompleted,
                 lastTaskDate: todayDate,
                 totalEarned: (inv.totalEarned || 0) + reward
             });
-            // Update user balance
             const userRef = db.collection('users').doc(currentUser.uid);
             const userSnap = await userRef.get();
             const oldBalance = userSnap.data().balance || 0;
@@ -954,7 +971,6 @@
                 balance: oldBalance + reward,
                 totalEarned: (userSnap.data().totalEarned || 0) + reward
             });
-            // Refresh current user
             const updatedUserDoc = await db.collection('users').doc(currentUser.uid).get();
             currentUser = { uid: currentUser.uid, ...updatedUserDoc.data() };
             document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
@@ -969,7 +985,7 @@
         }
     };
 
-    // ========== DEPOSIT ==========
+    // ========== DEPOSIT (with Firebase payment settings) ==========
     let selectedDepositMethod = null;
     let pendingDepositFile = null;
 
@@ -988,10 +1004,26 @@
         document.querySelectorAll('#depositMethods .payment-option').forEach(el => el.classList.remove('selected'));
         event.target.classList.add('selected');
         const detailsDiv = document.getElementById('depositDetails');
-        if (method === 'easypaisa') detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0"><p><strong>EasyPaisa Account:</strong> 03XX-1234567 (ManiVest)</p></div>`;
-        else if (method === 'jazzcash') detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0"><p><strong>JazzCash Account:</strong> 03XX-7654321 (ManiVest)</p></div>`;
-        else if (method === 'bank') detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0"><p><strong>Bank:</strong> Meezan Bank, Account: 1234-5678901</p></div>`;
-        else detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0"><p>Contact support for card payment.</p></div>`;
+        if (method === 'easypaisa') {
+            detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0">
+                <p><strong>EasyPaisa Account:</strong> ${paymentSettings.easypaisa.accountNo} (${paymentSettings.easypaisa.name})</p>
+            </div>`;
+        } else if (method === 'jazzcash') {
+            detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0">
+                <p><strong>JazzCash Account:</strong> ${paymentSettings.jazzcash.accountNo} (${paymentSettings.jazzcash.name})</p>
+            </div>`;
+        } else if (method === 'bank') {
+            detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0">
+                <p><strong>Bank:</strong> ${paymentSettings.bank.bankName}<br>
+                <strong>Account:</strong> ${paymentSettings.bank.accountNo}<br>
+                <strong>Holder:</strong> ${paymentSettings.bank.name}<br>
+                <strong>IBAN:</strong> ${paymentSettings.bank.iban}</p>
+            </div>`;
+        } else {
+            detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;border-radius:16px;margin:1rem 0">
+                <p>${paymentSettings.cardInstructions}</p>
+            </div>`;
+        }
         document.getElementById('depositScreenshotUpload').style.display = 'block';
         const fileInput = document.getElementById('depositProof');
         fileInput.onchange = async (e) => {
@@ -1027,7 +1059,7 @@
         showTab('dashboard');
     }
 
-    // ========== INVESTMENT ==========
+    // ========== INVESTMENT (with Firebase payment settings) ==========
     let selectedPlanForPayment = null;
     let selectedInvestmentPaymentMethod = null;
     let pendingInvestmentScreenshot = null;
@@ -1062,10 +1094,22 @@
             document.querySelectorAll('#investmentPaymentMethods .payment-option').forEach(el => el.classList.remove('selected'));
             event.target.classList.add('selected');
             const detailsDiv = document.getElementById('invPaymentDetails');
-            if (method === 'easypaisa') detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;margin:1rem 0">EasyPaisa: 03XX-1234567 (ManiVest)</div>`;
-            else if (method === 'jazzcash') detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;margin:1rem 0">JazzCash: 03XX-7654321 (ManiVest)</div>`;
-            else if (method === 'bank') detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;margin:1rem 0">Meezan Bank: 1234-5678901</div>`;
-            else if (method === 'balance') {
+            if (method === 'easypaisa') {
+                detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;margin:1rem 0">
+                    EasyPaisa: ${paymentSettings.easypaisa.accountNo} (${paymentSettings.easypaisa.name})
+                </div>`;
+            } else if (method === 'jazzcash') {
+                detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;margin:1rem 0">
+                    JazzCash: ${paymentSettings.jazzcash.accountNo} (${paymentSettings.jazzcash.name})
+                </div>`;
+            } else if (method === 'bank') {
+                detailsDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:1rem;margin:1rem 0">
+                    Bank: ${paymentSettings.bank.bankName}<br>
+                    Account: ${paymentSettings.bank.accountNo}<br>
+                    Holder: ${paymentSettings.bank.name}<br>
+                    IBAN: ${paymentSettings.bank.iban}
+                </div>`;
+            } else if (method === 'balance') {
                 detailsDiv.innerHTML = `<div style="background:rgba(0,229,255,0.1);padding:1rem;margin:1rem 0">Balance available: ₨ ${currentUser.balance}</div>`;
                 document.getElementById('invScreenshotUpload').style.display = 'none';
                 return;
