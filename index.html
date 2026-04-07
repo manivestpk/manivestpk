@@ -840,10 +840,10 @@
         }
     });
 
-   async function loadDashboardData() {
+  async function loadDashboardData() {
     if (!currentUser) return;
     
-    // ✅ Refresh current user data from Firestore (so totalWithdrawn updates)
+    // ✅ FIX: Refresh current user data from Firestore (so totalWithdrawn updates)
     const userDoc = await db.collection('users').doc(currentUser.uid).get();
     currentUser = { uid: currentUser.uid, ...userDoc.data() };
     
@@ -860,70 +860,67 @@
         <p><i class="fas fa-envelope"></i> Email: ${currentUser.email}</p>
         <p><i class="fas fa-code-branch"></i> Referral Code: ${currentUser.referralCode}</p>
     `;
-    
-    // ... baaki code waisa hi rahega (investments, deposits, etc.)
-    // (tumhara original code yahan continue hoga)
-}
-        const investmentsSnap = await db.collection('investments').where('userId', '==', currentUser.uid).get();
-        let investmentsHtml = '';
-        investmentsSnap.forEach(doc => {
-            const inv = doc.data();
-            investmentsHtml += `
-                <div class="dashboard" style="margin-bottom:1rem">
-                    <p><strong>${inv.planName}</strong> - Invested: ₨ ${inv.amount}</p>
-                    <p>Daily Earnings: ₨ ${inv.dailyEarn} | Status: ${inv.status}</p>
-                    <p>Invested on: ${new Date(inv.date).toLocaleDateString()}</p>
-                    ${inv.status === 'pending' ? '<span style="color:#ffd700">⏳ Waiting for admin approval</span>' : '<span style="color:#00e676">✅ Active</span>'}
-                    ${inv.screenshotUrl ? `<div><img src="${inv.screenshotUrl}" style="max-width:150px; border-radius:8px; cursor:pointer" onclick="window.open('${inv.screenshotUrl}','_blank')"></div>` : ''}
-                </div>
-            `;
-        });
-        document.getElementById('myInvestments').innerHTML = investmentsHtml || '<div class="dashboard"><p>No investments yet. <a onclick="showTab(\'plans\')" style="color:#00e5ff;cursor:pointer">Invest now →</a></p></div>';
 
-        const depositsSnap = await db.collection('deposits').where('userId', '==', currentUser.uid).get();
-        let depositsHtml = '';
-        depositsSnap.forEach(doc => {
-            const d = doc.data();
-            depositsHtml += `<div class="dashboard" style="margin-bottom:0.5rem"><p>💰 ₨ ${d.amount} - ${d.method} - ${d.status} - ${new Date(d.date).toLocaleDateString()}</p>${d.screenshotUrl ? `<img src="${d.screenshotUrl}" style="max-width:100px; border-radius:8px">` : ''}</div>`;
-        });
-        document.getElementById('depositHistory').innerHTML = depositsHtml || '<div class="dashboard"><p>No deposit history.</p></div>';
+    const investmentsSnap = await db.collection('investments').where('userId', '==', currentUser.uid).get();
+    let investmentsHtml = '';
+    investmentsSnap.forEach(doc => {
+        const inv = doc.data();
+        investmentsHtml += `
+            <div class="dashboard" style="margin-bottom:1rem">
+                <p><strong>${inv.planName}</strong> - Invested: ₨ ${inv.amount}</p>
+                <p>Daily Earnings: ₨ ${inv.dailyEarn} | Status: ${inv.status}</p>
+                <p>Invested on: ${new Date(inv.date).toLocaleDateString()}</p>
+                ${inv.status === 'pending' ? '<span style="color:#ffd700">⏳ Waiting for admin approval</span>' : '<span style="color:#00e676">✅ Active</span>'}
+                ${inv.screenshotUrl ? `<div><img src="${inv.screenshotUrl}" style="max-width:150px; border-radius:8px; cursor:pointer" onclick="window.open('${inv.screenshotUrl}','_blank')"></div>` : ''}
+            </div>
+        `;
+    });
+    document.getElementById('myInvestments').innerHTML = investmentsHtml || '<div class="dashboard"><p>No investments yet. <a onclick="showTab(\'plans\')" style="color:#00e5ff;cursor:pointer">Invest now →</a></p></div>';
 
-        const withdrawalsSnap = await db.collection('withdrawals').where('userId', '==', currentUser.uid).get();
-        let withdrawalsHtml = '';
-        withdrawalsSnap.forEach(doc => {
-            const w = doc.data();
-            withdrawalsHtml += `<div class="dashboard" style="margin-bottom:0.5rem"><p>💸 ₨ ${w.amount} - ${w.method} - ${w.status} - ${new Date(w.date).toLocaleDateString()}</p></div>`;
-        });
-        document.getElementById('withdrawalHistory').innerHTML = withdrawalsHtml || '<div class="dashboard"><p>No withdrawal history.</p></div>';
+    const depositsSnap = await db.collection('deposits').where('userId', '==', currentUser.uid).get();
+    let depositsHtml = '';
+    depositsSnap.forEach(doc => {
+        const d = doc.data();
+        depositsHtml += `<div class="dashboard" style="margin-bottom:0.5rem"><p>💰 ₨ ${d.amount} - ${d.method} - ${d.status} - ${new Date(d.date).toLocaleDateString()}</p>${d.screenshotUrl ? `<img src="${d.screenshotUrl}" style="max-width:100px; border-radius:8px">` : ''}</div>`;
+    });
+    document.getElementById('depositHistory').innerHTML = depositsHtml || '<div class="dashboard"><p>No deposit history.</p></div>';
 
-        // Today's tasks (with 10-second timer)
-        let tasksHtml = '';
-        for (const doc of investmentsSnap.docs) {
-            const inv = doc.data();
-            if (inv.status !== 'active') continue;
-            const plan = plansData.find(p => p.name === inv.planName);
-            if (!plan) continue;
-            const rewards = getTaskRewards(plan.dailyEarn, plan.tasksPerDay);
-            const todayPK = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
-            const todayDate = new Date(todayPK).toDateString();
-            const completedToday = (inv.lastTaskDate === todayDate) ? (inv.tasksCompletedToday || 0) : 0;
-            const remaining = plan.tasksPerDay - completedToday;
-            if (remaining <= 0) {
-                tasksHtml += `<div class="dashboard"><p>✅ ${plan.name}: All tasks completed for today. Come back after 12 AM (Pakistan time).</p></div>`;
-                continue;
-            }
-            tasksHtml += `<div class="dashboard"><h4>${plan.name}</h4><p>Complete ${remaining} task(s) to earn ₨ ${plan.dailyEarn} today.</p>`;
-            for (let i = completedToday; i < plan.tasksPerDay; i++) {
-                const reward = rewards[i];
-                tasksHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; background:rgba(0,0,0,0.3); padding:0.5rem; border-radius:12px">
-                    <span><i class="fab fa-youtube"></i> Watch video (${reward} PKR)</span>
-                    <button class="btn-primary" onclick="completeTask('${doc.id}', ${reward}, this)">Complete Task →</button>
-                </div>`;
-            }
-            tasksHtml += `</div>`;
+    const withdrawalsSnap = await db.collection('withdrawals').where('userId', '==', currentUser.uid).get();
+    let withdrawalsHtml = '';
+    withdrawalsSnap.forEach(doc => {
+        const w = doc.data();
+        withdrawalsHtml += `<div class="dashboard" style="margin-bottom:0.5rem"><p>💸 ₨ ${w.amount} - ${w.method} - ${w.status} - ${new Date(w.date).toLocaleDateString()}</p></div>`;
+    });
+    document.getElementById('withdrawalHistory').innerHTML = withdrawalsHtml || '<div class="dashboard"><p>No withdrawal history.</p></div>';
+
+    // Today's tasks (with 10-second timer)
+    let tasksHtml = '';
+    for (const doc of investmentsSnap.docs) {
+        const inv = doc.data();
+        if (inv.status !== 'active') continue;
+        const plan = plansData.find(p => p.name === inv.planName);
+        if (!plan) continue;
+        const rewards = getTaskRewards(plan.dailyEarn, plan.tasksPerDay);
+        const todayPK = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
+        const todayDate = new Date(todayPK).toDateString();
+        const completedToday = (inv.lastTaskDate === todayDate) ? (inv.tasksCompletedToday || 0) : 0;
+        const remaining = plan.tasksPerDay - completedToday;
+        if (remaining <= 0) {
+            tasksHtml += `<div class="dashboard"><p>✅ ${plan.name}: All tasks completed for today. Come back after 12 AM (Pakistan time).</p></div>`;
+            continue;
         }
-        document.getElementById('todayTasks').innerHTML = tasksHtml || '<div class="dashboard"><p>No active investments. Invest to start earning tasks!</p></div>';
+        tasksHtml += `<div class="dashboard"><h4>${plan.name}</h4><p>Complete ${remaining} task(s) to earn ₨ ${plan.dailyEarn} today.</p>`;
+        for (let i = completedToday; i < plan.tasksPerDay; i++) {
+            const reward = rewards[i];
+            tasksHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; background:rgba(0,0,0,0.3); padding:0.5rem; border-radius:12px">
+                <span><i class="fab fa-youtube"></i> Watch video (${reward} PKR)</span>
+                <button class="btn-primary" onclick="completeTask('${doc.id}', ${reward}, this)">Complete Task →</button>
+            </div>`;
+        }
+        tasksHtml += `</div>`;
     }
+    document.getElementById('todayTasks').innerHTML = tasksHtml || '<div class="dashboard"><p>No active investments. Invest to start earning tasks!</p></div>';
+}
 
     // Timer variable to prevent multiple clicks
     let activeTimer = false;
