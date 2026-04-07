@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ManiVest Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e1a;
+            color: #fff;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: rgba(18,25,45,0.95);
+            border-radius: 32px;
+            padding: 2rem;
+            border: 1px solid #00e5ff;
+            box-shadow: 0 0 30px rgba(0,229,255,0.2);
+        }
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #00e5ff;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 0.8rem;
+            margin: 0.8rem 0;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,229,255,0.2);
+            border-radius: 16px;
+            color: #fff;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 0.8rem;
+            background: linear-gradient(135deg, #00e5ff, #0091ea);
+            border: none;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .admin-container {
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        header {
+            background: rgba(5,8,15,0.95);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #00e5ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00e5ff, #ffd700);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .nav-tab {
+            background: rgba(255,255,255,0.05);
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .nav-tab.active, .nav-tab:hover {
+            background: #00e5ff;
+            color: #000;
+        }
+        .content-panel {
+            background: rgba(18,25,45,0.9);
+            border-radius: 28px;
+            padding: 1.5rem;
+            border: 1px solid rgba(0,229,255,0.2);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 20px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            padding: 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        th {
+            color: #00e5ff;
+        }
+        .btn-approve {
+            background: #00e676;
+            border: none;
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            cursor: pointer;
+            color: #fff;
+            margin: 0 2px;
+        }
+        .btn-reject {
+            background: #ff3b30;
+            border: none;
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            cursor: pointer;
+            color: #fff;
+            margin: 0 2px;
+        }
+        .btn-edit {
+            background: #ffd700;
+            border: none;
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            cursor: pointer;
+            color: #000;
+        }
+        .screenshot-link {
+            color: #00e5ff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .settings-group {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 16px;
+            margin-bottom: 1rem;
+        }
+        .settings-group h3 {
+            color: #ffd700;
+            margin-bottom: 0.8rem;
+        }
+        .settings-group input, .settings-group textarea {
+            width: 100%;
+            padding: 0.6rem;
+            margin: 0.3rem 0;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,229,255,0.2);
+            border-radius: 12px;
+            color: #fff;
+        }
+        .btn-save {
+            background: #00e5ff;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            color: #000;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+        @media (max-width: 768px) {
+            .admin-container { padding: 1rem; }
+            table { display: block; overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-container">
+    <h2><i class="fas fa-shield-alt"></i> Admin Login</h2>
+    <input type="email" id="adminEmail" placeholder="Email" value="admin@manivest.pk">
+    <input type="password" id="adminPassword" placeholder="Password">
+    <button onclick="adminLogin()">Login →</button>
+    <div id="loginError" style="color:#ff3b30; margin-top:1rem; text-align:center"></div>
+</div>
+
+<!-- Main Admin Panel -->
+<div id="adminPanel" class="admin-container">
+    <header>
+        <div class="logo"><i class="fas fa-chart-line"></i> ManiVest Admin</div>
+        <div><span id="adminName"></span> <button onclick="logout()" style="margin-left:1rem; background:#ff3b30; border:none; padding:0.3rem 0.8rem; border-radius:20px; cursor:pointer;">Logout</button></div>
+    </header>
+    <div class="nav-tabs">
+        <div class="nav-tab active" data-tab="dashboard">📊 Dashboard</div>
+        <div class="nav-tab" data-tab="users">👥 Users</div>
+        <div class="nav-tab" data-tab="investments">💰 Investments</div>
+        <div class="nav-tab" data-tab="deposits">🏦 Deposits</div>
+        <div class="nav-tab" data-tab="withdrawals">💸 Withdrawals</div>
+        <div class="nav-tab" data-tab="settings">⚙️ Settings</div>
+    </div>
+    <div id="dashboard" class="content-panel">Loading...</div>
+    <div id="users" class="content-panel" style="display:none;">Loading...</div>
+    <div id="investments" class="content-panel" style="display:none;">Loading...</div>
+    <div id="deposits" class="content-panel" style="display:none;">Loading...</div>
+    <div id="withdrawals" class="content-panel" style="display:none;">Loading...</div>
+    <div id="settings" class="content-panel" style="display:none;">Loading...</div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDam3OQ60idpUthZ37syw3mv1OO-U21OZE",
+        authDomain: "manivestpk.firebaseapp.com",
+        projectId: "manivestpk",
+        storageBucket: "manivestpk.firebasestorage.app",
+        messagingSenderId: "67445649104",
+        appId: "1:67445649104:web:3109edceb26ad72d2c38d5",
+        measurementId: "G-5CL5R5BBJK"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+
+    window.adminLogin = async () => {
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+        const errorDiv = document.getElementById('loginError');
+        try {
+            const userCred = await auth.signInWithEmailAndPassword(email, password);
+            const user = userCred.user;
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists && userDoc.data().isAdmin === true) {
+                currentUser = { uid: user.uid, ...userDoc.data() };
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminName').innerText = currentUser.name || 'Admin';
+                loadDashboard();
+                loadUsers();
+                loadInvestments();
+                loadDeposits();
+                loadWithdrawals();
+                loadSettings();
+                setupTabs();
+            } else {
+                errorDiv.innerText = 'Access denied. Not an admin.';
+                await auth.signOut();
+            }
+        } catch (err) {
+            errorDiv.innerText = err.message;
+        }
+    };
+
+    window.logout = async () => {
+        await auth.signOut();
+        location.reload();
+    };
+
+    function setupTabs() {
+        const tabs = document.querySelectorAll('.nav-tab');
+        const panels = ['dashboard', 'users', 'investments', 'deposits', 'withdrawals', 'settings'];
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.getAttribute('data-tab');
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                panels.forEach(panel => {
+                    const el = document.getElementById(panel);
+                    if (el) el.style.display = 'none';
+                });
+                document.getElementById(target).style.display = 'block';
+                if (target === 'dashboard') loadDashboard();
+                else if (target === 'users') loadUsers();
+                else if (target === 'investments') loadInvestments();
+                else if (target === 'deposits') loadDeposits();
+                else if (target === 'withdrawals') loadWithdrawals();
+                else if (target === 'settings') loadSettings();
+            });
+        });
+    }
+
+    async function loadDashboard() {
+        const div = document.getElementById('dashboard');
+        div.innerHTML = '<div class="stats-grid">Loading...</div>';
+        try {
+            const usersSnap = await db.collection('users').get();
+            const investmentsSnap = await db.collection('investments').get();
+            let totalInvested = 0;
+            investmentsSnap.forEach(doc => { if (doc.data().amount) totalInvested += doc.data().amount; });
+            const pendingInv = await db.collection('investments').where('status', '==', 'pending').get();
+            const pendingDep = await db.collection('deposits').where('status', '==', 'pending').get();
+            const pendingWd = await db.collection('withdrawals').where('status', '==', 'pending').get();
+            div.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card"><i class="fas fa-users"></i><div class="stat-number">${usersSnap.size}</div><div>Total Users</div></div>
+                    <div class="stat-card"><i class="fas fa-rupee-sign"></i><div class="stat-number">₨ ${totalInvested.toLocaleString()}</div><div>Total Invested</div></div>
+                    <div class="stat-card"><i class="fas fa-clock"></i><div class="stat-number">${pendingInv.size}</div><div>Pending Investments</div></div>
+                    <div class="stat-card"><i class="fas fa-clock"></i><div class="stat-number">${pendingDep.size}</div><div>Pending Deposits</div></div>
+                    <div class="stat-card"><i class="fas fa-clock"></i><div class="stat-number">${pendingWd.size}</div><div>Pending Withdrawals</div></div>
+                </div>
+            `;
+        } catch (err) {
+            div.innerHTML = `<div>Error: ${err.message}</div>`;
+        }
+    }
+
+    async function loadUsers() {
+        const div = document.getElementById('users');
+        div.innerHTML = 'Loading...';
+        try {
+            const snap = await db.collection('users').get();
+            let html = '<table><tr><th>Name</th><th>Email</th><th>Balance</th><th>Admin</th><th>Action</th></tr>';
+            snap.forEach(doc => {
+                const u = doc.data();
+                html += `<tr>
+                    <td>${u.name || 'N/A'}</td>
+                    <td>${u.email}</td>
+                    <td>₨ ${u.balance || 0}</td>
+                    <td>${u.isAdmin ? 'Yes' : 'No'}</td>
+                    <td><button class="btn-edit" onclick="editBalance('${doc.id}')">Edit</button></td>
+                </tr>`;
+            });
+            html += '</table>';
+            div.innerHTML = html;
+        } catch (err) {
+            div.innerHTML = `<div>Error: ${err.message}</div>`;
+        }
+    }
+
+    async function loadInvestments() {
+        const div = document.getElementById('investments');
+        div.innerHTML = 'Loading...';
+        try {
+            const snap = await db.collection('investments').where('status', '==', 'pending').get();
+            if (snap.empty) { div.innerHTML = '<div>No pending investments.</div>'; return; }
+            let html = '<table><tr><th>User</th><th>Plan</th><th>Amount</th><th>Date</th><th>Proof</th><th>Action</th></tr>';
+            for (const doc of snap.docs) {
+                const inv = doc.data();
+                let userName = 'Unknown';
+                if (inv.userId) {
+                    const userDoc = await db.collection('users').doc(inv.userId).get();
+                    if (userDoc.exists) userName = userDoc.data().name || userDoc.data().email;
+                }
+                html += `<tr>
+                    <td>${userName}</td>
+                    <td>${inv.planName || 'N/A'}</td>
+                    <td>₨ ${inv.amount}</td>
+                    <td>${new Date(inv.date).toLocaleDateString()}</td>
+                    <td>${inv.screenshotUrl ? `<a href="${inv.screenshotUrl}" target="_blank" class="screenshot-link">View</a>` : '-'}</td>
+                    <td><button class="btn-approve" onclick="approveInvestment('${doc.id}')">Approve</button> <button class="btn-reject" onclick="rejectInvestment('${doc.id}')">Reject</button></td>
+                </tr>`;
+            }
+            html += '</table>';
+            div.innerHTML = html;
+        } catch (err) { div.innerHTML = `<div>Error: ${err.message}</div>`; }
+    }
+
+    async function loadDeposits() {
+        const div = document.getElementById('deposits');
+        div.innerHTML = 'Loading...';
+        try {
+            const snap = await db.collection('deposits').where('status', '==', 'pending').get();
+            if (snap.empty) { div.innerHTML = '<div>No pending deposits.</div>'; return; }
+            let html = '<table><tr><th>User</th><th>Amount</th><th>Method</th><th>Date</th><th>Proof</th><th>Action</th></tr>';
+            for (const doc of snap.docs) {
+                const dep = doc.data();
+                let userName = 'Unknown';
+                if (dep.userId) {
+                    const userDoc = await db.collection('users').doc(dep.userId).get();
+                    if (userDoc.exists) userName = userDoc.data().name || userDoc.data().email;
+                }
+                html += `<tr>
+                    <td>${userName}</td>
+                    <td>₨ ${dep.amount}</td>
+                    <td>${dep.method}</td>
+                    <td>${new Date(dep.date).toLocaleDateString()}</td>
+                    <td>${dep.screenshotUrl ? `<a href="${dep.screenshotUrl}" target="_blank" class="screenshot-link">View</a>` : '-'}</td>
+                    <td><button class="btn-approve" onclick="approveDeposit('${doc.id}', ${dep.amount}, '${dep.userId}')">Approve</button> <button class="btn-reject" onclick="rejectDeposit('${doc.id}')">Reject</button></td>
+                </tr>`;
+            }
+            html += '</table>';
+            div.innerHTML = html;
+        } catch (err) { div.innerHTML = `<div>Error: ${err.message}</div>`; }
+    }
+
+    async function loadWithdrawals() {
+        const div = document.getElementById('withdrawals');
+        div.innerHTML = 'Loading...';
+        try {
+            const snap = await db.collection('withdrawals').where('status', '==', 'pending').get();
+            if (snap.empty) { div.innerHTML = '<div>No pending withdrawals.</div>'; return; }
+            let html = '<table><tr><th>User</th><th>Amount</th><th>Method</th><th>Account</th><th>Date</th><th>Action</th></tr>';
+            for (const doc of snap.docs) {
+                const wd = doc.data();
+                let userName = 'Unknown';
+                if (wd.userId) {
+                    const userDoc = await db.collection('users').doc(wd.userId).get();
+                    if (userDoc.exists) userName = userDoc.data().name || userDoc.data().email;
+                }
+                html += `<tr>
+                    <td>${userName}</td>
+                    <td>₨ ${wd.amount}</td>
+                    <td>${wd.method}</td>
+                    <td>${wd.accountDetails?.accountNo || 'N/A'}</td>
+                    <td>${new Date(wd.date).toLocaleDateString()}</td>
+                    <td><button class="btn-approve" onclick="approveWithdrawal('${doc.id}', ${wd.amount}, '${wd.userId}')">Approve</button> <button class="btn-reject" onclick="rejectWithdrawal('${doc.id}')">Reject</button></td>
+                </tr>`;
+            }
+            html += '</table>';
+            div.innerHTML = html;
+        } catch (err) { div.innerHTML = `<div>Error: ${err.message}</div>`; }
+    }
+
+    // Settings with proper error handling
+    async function loadSettings() {
+        const div = document.getElementById('settings');
+        div.innerHTML = 'Loading settings...';
+        try {
+            const settingsDoc = await db.collection('adminSettings').doc('paymentMethods').get();
+            let settings = settingsDoc.exists ? settingsDoc.data() : {};
+            
+            // Safe defaults
+            const easypaisa = settings.easypaisa || { accountNo: '03XX-1234567', name: 'ManiVest Pvt Ltd' };
+            const jazzcash = settings.jazzcash || { accountNo: '03XX-7654321', name: 'ManiVest Pvt Ltd' };
+            const bank = settings.bank || { accountNo: '1234-5678901', bankName: 'Meezan Bank', name: 'ManiVest Investments', iban: 'PK36MEZN0012345678901' };
+            const cardInstructions = settings.cardInstructions || 'Contact support for card payment details.';
+            
+            div.innerHTML = `
+                <h2 style="color:#00e5ff; margin-bottom:1rem">Payment Methods Settings</h2>
+                
+                <div class="settings-group">
+                    <h3><i class="fas fa-wallet"></i> EasyPaisa</h3>
+                    <input type="text" id="easypaisa_account" placeholder="Account Number" value="${easypaisa.accountNo || ''}">
+                    <input type="text" id="easypaisa_name" placeholder="Account Holder Name" value="${easypaisa.name || ''}">
+                    <button class="btn-save" onclick="saveEasyPaisa()">Save EasyPaisa</button>
+                </div>
+                
+                <div class="settings-group">
+                    <h3><i class="fas fa-mobile-alt"></i> JazzCash</h3>
+                    <input type="text" id="jazzcash_account" placeholder="Account Number" value="${jazzcash.accountNo || ''}">
+                    <input type="text" id="jazzcash_name" placeholder="Account Holder Name" value="${jazzcash.name || ''}">
+                    <button class="btn-save" onclick="saveJazzCash()">Save JazzCash</button>
+                </div>
+                
+                <div class="settings-group">
+                    <h3><i class="fas fa-university"></i> Bank Transfer</h3>
+                    <input type="text" id="bank_account" placeholder="Account Number" value="${bank.accountNo || ''}">
+                    <input type="text" id="bank_name" placeholder="Bank Name" value="${bank.bankName || ''}">
+                    <input type="text" id="bank_holder" placeholder="Account Holder Name" value="${bank.name || ''}">
+                    <input type="text" id="bank_iban" placeholder="IBAN" value="${bank.iban || ''}">
+                    <button class="btn-save" onclick="saveBank()">Save Bank</button>
+                </div>
+                
+                <div class="settings-group">
+                    <h3><i class="fas fa-credit-card"></i> Card Payment</h3>
+                    <textarea id="card_instructions" rows="3" placeholder="Card payment instructions">${cardInstructions}</textarea>
+                    <button class="btn-save" onclick="saveCard()">Save Card Instructions</button>
+                </div>
+            `;
+        } catch (err) {
+            div.innerHTML = `<div>Error: ${err.message}</div>`;
+        }
+    }
+
+    // Individual save functions to avoid undefined errors
+    window.saveEasyPaisa = async () => {
+        const accountNo = document.getElementById('easypaisa_account').value;
+        const name = document.getElementById('easypaisa_name').value;
+        await db.collection('adminSettings').doc('paymentMethods').set({
+            easypaisa: { accountNo, name }
+        }, { merge: true });
+        alert('EasyPaisa settings saved!');
+        loadSettings();
+    };
+
+    window.saveJazzCash = async () => {
+        const accountNo = document.getElementById('jazzcash_account').value;
+        const name = document.getElementById('jazzcash_name').value;
+        await db.collection('adminSettings').doc('paymentMethods').set({
+            jazzcash: { accountNo, name }
+        }, { merge: true });
+        alert('JazzCash settings saved!');
+        loadSettings();
+    };
+
+    window.saveBank = async () => {
+        const accountNo = document.getElementById('bank_account').value;
+        const bankName = document.getElementById('bank_name').value;
+        const name = document.getElementById('bank_holder').value;
+        const iban = document.getElementById('bank_iban').value;
+        await db.collection('adminSettings').doc('paymentMethods').set({
+            bank: { accountNo, bankName, name, iban }
+        }, { merge: true });
+        alert('Bank settings saved!');
+        loadSettings();
+    };
+
+    window.saveCard = async () => {
+        const instructions = document.getElementById('card_instructions').value;
+        await db.collection('adminSettings').doc('paymentMethods').set({
+            cardInstructions: instructions
+        }, { merge: true });
+        alert('Card instructions saved!');
+        loadSettings();
+    };
+
+    // Approve/Reject Functions
+    window.approveInvestment = async (id) => {
+        await db.collection('investments').doc(id).update({ status: 'active' });
+        alert('Approved');
+        loadInvestments(); loadDashboard();
+    };
+    window.rejectInvestment = async (id) => {
+        await db.collection('investments').doc(id).delete();
+        alert('Rejected');
+        loadInvestments(); loadDashboard();
+    };
+    window.approveDeposit = async (id, amount, userId) => {
+        await db.collection('deposits').doc(id).update({ status: 'completed' });
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        await userRef.update({ balance: (userDoc.data().balance || 0) + amount });
+        alert('Deposit approved');
+        loadDeposits(); loadDashboard();
+    };
+    window.rejectDeposit = async (id) => {
+        await db.collection('deposits').doc(id).delete();
+        alert('Rejected');
+        loadDeposits(); loadDashboard();
+    };
+    window.approveWithdrawal = async (id, amount, userId) => {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        if ((userDoc.data().balance || 0) < amount) { alert('Insufficient balance!'); return; }
+        await userRef.update({ balance: (userDoc.data().balance || 0) - amount });
+        await db.collection('withdrawals').doc(id).update({ status: 'completed' });
+        alert('Withdrawal approved');
+        loadWithdrawals(); loadDashboard();
+    };
+    window.rejectWithdrawal = async (id) => {
+        await db.collection('withdrawals').doc(id).delete();
+        alert('Rejected');
+        loadWithdrawals(); loadDashboard();
+    };
+    window.editBalance = async (userId) => {
+        const newBalance = prompt('Enter new balance amount:');
+        if (newBalance && !isNaN(parseFloat(newBalance))) {
+            await db.collection('users').doc(userId).update({ balance: parseFloat(newBalance) });
+            alert('Balance updated');
+            loadUsers();
+        }
+    };
+
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists && userDoc.data().isAdmin === true) {
+                currentUser = { uid: user.uid, ...userDoc.data() };
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminName').innerText = currentUser.name || 'Admin';
+                loadDashboard(); loadUsers(); loadInvestments(); loadDeposits(); loadWithdrawals(); loadSettings();
+                setupTabs();
+            } else { await auth.signOut(); }
+        }
+    });
+</script>
+</body>
+</html>
