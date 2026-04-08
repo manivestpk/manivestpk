@@ -824,7 +824,7 @@
             document.getElementById('userHeaderInfo').style.display = 'flex';
             document.getElementById('welcomeName').innerText = currentUser.name;
             document.getElementById('headerUserName').innerText = currentUser.name;
-            document.getElementById('referralLink').innerHTML = `https://manivest-pk.netlify.app/ref/${currentUser.referralCode}`;
+            document.getElementById('referralLink').innerHTML = `https://manivest-pk.netlify.app/`;
             document.getElementById('depositBalance').innerHTML = `₨ ${currentUser.balance}`;
             await loadDashboardData();
             updatePlansUI();
