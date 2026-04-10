@@ -381,7 +381,7 @@
         try {
             const snap = await db.collection('deposits').where('status', '==', 'pending').get();
             if (snap.empty) { div.innerHTML = '<div>No pending deposits.</div>'; return; }
-            let html = '<table><tr><th>User</th><th>Amount</th><th>Method</th><th>Date</th><th>Proof</th><th>Action</th></tr>';
+            let html = '<tr><tr><th>User</th><th>Amount</th><th>Method</th><th>Date</th><th>Proof</th><th>Action</th></tr>';
             for (const doc of snap.docs) {
                 const dep = doc.data();
                 let userName = 'Unknown';
@@ -409,7 +409,7 @@
         try {
             const snap = await db.collection('withdrawals').where('status', '==', 'pending').get();
             if (snap.empty) { div.innerHTML = '<div>No pending withdrawals.</div>'; return; }
-            let html = '<table><tr><th>User</th><th>Amount</th><th>Method</th><th>Account</th><th>Date</th><th>Action</th></tr>';
+            let html = '<tr><tr><th>User</th><th>Amount</th><th>Method</th><th>Account</th><th>Date</th><th>Action</th></tr>';
             for (const doc of snap.docs) {
                 const wd = doc.data();
                 let userName = 'Unknown';
@@ -524,44 +524,75 @@
         loadSettings();
     };
 
-    // Approve/Reject Functions
+    // ========== APPROVE / REJECT FUNCTIONS (FIXED - WITH CONFIRMATION) ==========
+    
     window.approveInvestment = async (id) => {
-        await db.collection('investments').doc(id).update({ status: 'active' });
-        alert('Approved');
-        loadInvestments(); loadDashboard();
+        if (confirm('Approve this investment?')) {
+            await db.collection('investments').doc(id).update({ status: 'active' });
+            alert('Investment approved');
+            loadInvestments(); 
+            loadDashboard();
+        }
     };
+    
     window.rejectInvestment = async (id) => {
-        await db.collection('investments').doc(id).delete();
-        alert('Rejected');
-        loadInvestments(); loadDashboard();
+        if (confirm('Are you sure you want to REJECT this investment? This will DELETE it permanently.')) {
+            await db.collection('investments').doc(id).delete();
+            alert('Investment rejected and removed');
+            loadInvestments(); 
+            loadDashboard();
+        }
     };
+    
     window.approveDeposit = async (id, amount, userId) => {
-        await db.collection('deposits').doc(id).update({ status: 'completed' });
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await userRef.get();
-        await userRef.update({ balance: (userDoc.data().balance || 0) + amount });
-        alert('Deposit approved');
-        loadDeposits(); loadDashboard();
+        if (confirm('Approve this deposit?')) {
+            await db.collection('deposits').doc(id).update({ status: 'completed' });
+            const userRef = db.collection('users').doc(userId);
+            const userDoc = await userRef.get();
+            await userRef.update({ balance: (userDoc.data().balance || 0) + amount });
+            alert('Deposit approved');
+            loadDeposits(); 
+            loadDashboard();
+        }
     };
+    
     window.rejectDeposit = async (id) => {
-        await db.collection('deposits').doc(id).delete();
-        alert('Rejected');
-        loadDeposits(); loadDashboard();
+        if (confirm('Are you sure you want to REJECT this deposit? This will DELETE it permanently.')) {
+            await db.collection('deposits').doc(id).delete();
+            alert('Deposit rejected');
+            loadDeposits(); 
+            loadDashboard();
+        }
     };
+    
     window.approveWithdrawal = async (id, amount, userId) => {
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await userRef.get();
-        if ((userDoc.data().balance || 0) < amount) { alert('Insufficient balance!'); return; }
-        await userRef.update({ balance: (userDoc.data().balance || 0) - amount });
-        await db.collection('withdrawals').doc(id).update({ status: 'completed' });
-        alert('Withdrawal approved');
-        loadWithdrawals(); loadDashboard();
+        if (confirm('Approve this withdrawal? Money will be deducted from user balance.')) {
+            const userRef = db.collection('users').doc(userId);
+            const userDoc = await userRef.get();
+            if ((userDoc.data().balance || 0) < amount) { 
+                alert('Insufficient balance!'); 
+                return; 
+            }
+            await userRef.update({ 
+                balance: (userDoc.data().balance || 0) - amount,
+                totalWithdrawn: (userDoc.data().totalWithdrawn || 0) + amount
+            });
+            await db.collection('withdrawals').doc(id).update({ status: 'completed' });
+            alert('Withdrawal approved');
+            loadWithdrawals(); 
+            loadDashboard();
+        }
     };
+    
     window.rejectWithdrawal = async (id) => {
-        await db.collection('withdrawals').doc(id).delete();
-        alert('Rejected');
-        loadWithdrawals(); loadDashboard();
+        if (confirm('Are you sure you want to REJECT this withdrawal? This will DELETE it permanently.')) {
+            await db.collection('withdrawals').doc(id).delete();
+            alert('Withdrawal rejected');
+            loadWithdrawals(); 
+            loadDashboard();
+        }
     };
+    
     window.editBalance = async (userId) => {
         const newBalance = prompt('Enter new balance amount:');
         if (newBalance && !isNaN(parseFloat(newBalance))) {
